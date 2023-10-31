@@ -8,6 +8,7 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Routing\Annotation\Route;
 use App\Repository\UserRepository;
 use App\Repository\CommentRepository;
+USE App\Service\DataBase;
 use Psr\Cache\CacheItemPoolInterface;
 
 class UserController extends AbstractController
@@ -19,6 +20,26 @@ class UserController extends AbstractController
         private readonly CommentRepository $commentRepository
     )
     {
+    }
+
+    /**
+     * @Route("/api/users/add", methods={"POST"}, name="add_to_cart")
+     */
+    public function add(Request $request): JsonResponse
+    {
+        $DB = DataBase::getInstance();
+        $data = json_decode($request->getContent(), true);
+        $user = $DB->query("SELECT * FROM users WHERE email = {$data['email']}")->fetch();
+        $item = $DB->query("SELECT * FROM items WHERE id = {$data['id']}")->fetch();
+
+        if ($user['balance'] < $item['cost']) {
+            return new JsonResponse('Not enough money', 400);
+        }
+
+        $DB->query('UPDATE users SET balance = balance - ' . $item['cost']);
+        $DB->query("INSERT INTO items_users (user_id, item_id) VALUES (  {$user['id']}, {$item['id']})");
+
+        return new JsonResponse('Added');
     }
 
     /**
